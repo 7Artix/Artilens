@@ -1,0 +1,36 @@
+# --- 依赖与包管理器 ---
+node_modules/
+.pnpm-store/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- 编译结果与过程文件 ---
+dist/
+dist-ssr/
+*.local
+.cache/
+.vite/
+.parcel-cache/
+
+# --- Docker 相关 ---
+# 排除 Docker 镜像导出的 tar 包或构建过程中的临时日志
+*.tar
+*.log
+.dockerignore
+
+# --- 编辑器与系统冗余 ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- 环境配置 (敏感信息) ---
+.env
+.env.local
+.env.*.local
