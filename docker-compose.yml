@@ -1,0 +1,20 @@
+services:
+  backend:
+    # We will use image names instead of 'build' for remote deployment
+    image: artixzhang/7artix-backend:latest
+    container_name: 7artix-backend
+    restart: always
+    volumes:
+      # CRITICAL: Maps the host folder './data' to container '/app/data'
+      - ${HOST_DATA_PATH:-./data}:/app/data
+    environment:
+      - PORT=3000
+
+  frontend:
+    image: artixzhang/7artix-frontend:latest
+    container_name: 7artix-frontend
+    restart: always
+    ports:
+      - "80:80" # Maps Server Port 80 to Container Port 80
+    depends_on:
+      - backend

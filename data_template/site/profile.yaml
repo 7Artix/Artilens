@@ -1,0 +1,22 @@
+name: ""
+avatar: ""
+headline:
+  - ""
+  - ""
+location:
+  value: ""
+  icon: ""
+email:
+  url: ""
+  icon: ""
+social:
+  Github:
+    url: ""
+    icon: ""
+  Twitter:
+    url: ""
+    icon: ""
+  LinkedIn:
+    url: ""
+    icon: ""
+# ...

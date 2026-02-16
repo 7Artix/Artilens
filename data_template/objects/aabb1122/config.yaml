@@ -1,0 +1,14 @@
+id: aabb1122
+name: Template Object
+dateCreated: '2026-02-05T15:38:33.337Z'
+dateModified: '2026-02-05T15:38:33.337Z'
+type: project
+visibility: public
+author: Artix
+description: This is a template object of the ArtiLens
+basePath: /api/static/objects/aabb1122/
+coverImage: assets/media/pattern.png
+cardImages:
+  - assets/media/pattern.png
+tags:
+  - 1122aabb
