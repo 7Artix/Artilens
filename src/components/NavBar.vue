@@ -8,7 +8,7 @@
             <div class="navbar-content">
                 <ul class="nav-links">
                     <li 
-                        v-for="item in menuItems" 
+                        v-for="item in displayMenuItems" 
                         :key="item.path" 
                         @click="navigateTo(item.path)"
                         @mouseenter="isHovered = true; hoveredItem = item"
@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import gsap from 'gsap'
 import yaml from 'js-yaml'
@@ -85,6 +85,45 @@ const navbarRef = ref(null)
 const backdropRef = ref(null)
 
 const menuItems = ref([])
+
+// User system
+const isAdmin = computed(() => {
+    const userInfo = localStorage.getItem('userInfo')
+    return userInfo && JSON.parse(userInfo).role === 'admin'
+})
+
+const isLoggedIn = computed(() => {
+    return !!localStorage.getItem('authToken')
+})
+
+const displayMenuItems = computed(() => {
+    return menuItems.value.map(item => {
+        if (item.label === 'account') {
+            const children = [...(item.children || [])]
+            
+            // Remove Login if already logged in
+            const loginIndex = children.findIndex(c => c.path === '/login')
+            if (isLoggedIn.value && loginIndex > -1) {
+                children.splice(loginIndex, 1)
+            }
+
+            // Add Admin if admin
+            if (isAdmin.value) {
+                children.push({ name: 'Admin Console', path: '/admin/objects' })
+            }
+
+            // Add Logout if logged in
+            if (isLoggedIn.value) {
+                children.push({ name: 'Log Out', path: '/logout' })
+            } else if (loginIndex === -1) {
+                children.push({ name: 'Log In', path: '/login' })
+            }
+
+            return { ...item, children }
+        }
+        return item
+    })
+})
 
 const fetchNavData = async () => {
     try {
@@ -123,6 +162,16 @@ onMounted(() => {
 })
 
 const navigateTo = (path) => {
+    // User system
+    if (path === '/logout') {
+        localStorage.removeItem('authToken')
+        localStorage.removeItem('userInfo')
+        router.push('/')
+        isHovered.value = false
+        hoveredItem.value = null
+        return
+    }
+    
     router.push(path)
     isHovered.value = false
     hoveredItem.value = null

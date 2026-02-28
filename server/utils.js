@@ -2,7 +2,50 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { OBJECTS_PATH, TAGS_FILE } from './config.js';
+import crypto from 'crypto';
+import { OBJECTS_PATH, TAGS_FILE, USERS_FILE } from './config.js';
+
+// ID Generation: 8-char hex string
+export const generateID = () => {
+    return crypto.randomBytes(4).toString('hex');
+};
+
+// Password hashing and verification
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1, keyLen: 64 };
+export const hashPassword = (password) => {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const derivedKey = crypto.scryptSync(password, salt, SCRYPT_PARAMS.keyLen, {
+        N: SCRYPT_PARAMS.N,
+        r: SCRYPT_PARAMS.r,
+        p: SCRYPT_PARAMS.p
+    });
+    return `${salt}:${derivedKey.toString('hex')}`;
+};
+
+export const verifyPassword = (password, hash) => {
+    const [salt, key] = hash.split(':');
+    const keyBuffer = Buffer.from(key, 'hex');
+    const derivedKey = crypto.scryptSync(password, salt, SCRYPT_PARAMS.keyLen, {
+        N: SCRYPT_PARAMS.N,
+        r: SCRYPT_PARAMS.r,
+        p: SCRYPT_PARAMS.p
+    });
+    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+};
+
+// User data management
+export const getUsers = () => {
+    if (!fs.existsSync(USERS_FILE)) return [];
+    try {
+        return yaml.load(fs.readFileSync(USERS_FILE, 'utf8')) || [];
+    } catch { return []; }
+};
+
+export const saveUsers = (users) => {
+    const dir = path.dirname(USERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(USERS_FILE, yaml.dump(users, { lineWidth: -1 }));
+};
 
 const getGlobalTagIds = () => {
     if (!fs.existsSync(TAGS_FILE)) return [];
@@ -35,6 +78,35 @@ export const getAllObjectsFromFiles = () => {
                 }
             }
 
+            const users = getUsers();
+            const userPermissions = existingConfig.user || {};
+            
+            // Migration logic: if old fields exist, migrate them
+            if (!existingConfig.user) {
+                if (existingConfig.owner_id) {
+                    userPermissions[existingConfig.owner_id] = "owner";
+                }
+                if (existingConfig.shared_with && Array.isArray(existingConfig.shared_with)) {
+                    existingConfig.shared_with.forEach(uid => {
+                        if (!userPermissions[uid]) userPermissions[uid] = "read";
+                    });
+                }
+            }
+
+            // Determine author name from owner
+            const ownerId = Object.keys(userPermissions).find(uid => userPermissions[uid] === 'owner');
+            const ownerUser = users.find(u => u.id === ownerId);
+            const authorName = ownerUser ? ownerUser.username : (existingConfig.author || "Artix");
+
+            // Clean up zombie users (users that no longer exist)
+            const validUserIds = users.map(u => u.id);
+            const cleanedUserPermissions = {};
+            Object.keys(userPermissions).forEach(uid => {
+                if (validUserIds.includes(uid)) {
+                    cleanedUserPermissions[uid] = userPermissions[uid];
+                }
+            });
+
             const repairedConfig = {
                 id: folderName,
                 name: existingConfig.name || "New Object",
@@ -42,7 +114,7 @@ export const getAllObjectsFromFiles = () => {
                 dateModified: existingConfig.dateModified || existingConfig.dateCreated || new Date().toISOString(),
                 type: existingConfig.type || "project",
                 visibility: existingConfig.visibility || "public",
-                author: existingConfig.author || "Artix",
+                user: cleanedUserPermissions,
                 description: existingConfig.description || "",
                 // Assets Attributes
                 basePath: `/api/static/objects/${folderName}/`, 
@@ -51,6 +123,9 @@ export const getAllObjectsFromFiles = () => {
                 // Expired tags clean-up
                 tags: (existingConfig.tags || []).filter(tid => globalTagIds.includes(tid))
             };
+
+            // Add virtual author field for frontend
+            const finalObject = { ...repairedConfig, author: authorName };
 
             const isMissingConfig = !fs.existsSync(configPath);
             const isDifferentConfig = JSON.stringify(existingConfig) !== JSON.stringify(repairedConfig);
@@ -68,7 +143,7 @@ export const getAllObjectsFromFiles = () => {
                 fs.mkdirSync(path.join(OBJECTS_PATH, folderName, 'assets', 'file'), { recursive: true });
             }
 
-            return repairedConfig;
+            return finalObject;
         });
     } catch (e) {
         console.error("[Utils] Scan fatal error:", e);

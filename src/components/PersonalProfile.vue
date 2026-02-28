@@ -234,8 +234,7 @@ const pillHeight = 24; // 稍微调高一点胶囊高度以匹配图标视觉
 }
 
 .icon-link:hover {
-  transform: scale(1.1);
-  filter: drop-shadow(0 0px 10px rgba(0, 0, 0, 0.2));
+  transform: scale(1.05);
 }
 
 .email-icon-masked {

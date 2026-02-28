@@ -72,11 +72,23 @@ const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString() : 'Unknown'
 const fetchData = async () => {
     try {
         const id = route.params.id
-        // 这里的 fetch 是获取对象的完整 JSON 数据（包含 Header 所需的元数据和 Markdown 内容）
+        const token = localStorage.getItem('authToken')
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+        
         const [objRes, tagRes] = await Promise.all([
-            fetch(`/api/objects/${id}`),
+            fetch(`/api/objects/${id}`, { headers }),
             fetch('/api/tags/list')
         ])
+        
+        if (!objRes.ok) {
+          if (objRes.status === 403) {
+            alert('Permission denied')
+          } else {
+            alert('Object not found')
+          }
+          return
+        }
+
         obj.value = await objRes.json()
         tagsDict.value = await tagRes.json()
     } finally {

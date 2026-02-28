@@ -59,6 +59,49 @@
               <textarea v-model="localObj.description" rows="4" class="modern-textarea"></textarea>
             </div>
 
+            <div class="form-group" v-if="canManageAccess">
+              <label>Access Control</label>
+              <div class="user-permissions-list">
+                <!-- Owner Row -->
+                <div class="user-perm-item owner">
+                  <span class="user-info">
+                    <span class="user-name">{{ getOwnerName() }}</span>
+                    <span class="user-badge">Owner</span>
+                  </span>
+                  <span class="user-id-hint">{{ getOwnerId() }}</span>
+                </div>
+
+                <!-- Shared Users Rows -->
+                <div v-for="(perm, uid) in sharedUsers" :key="uid" class="user-perm-item">
+                  <span class="user-info">
+                    <span class="user-name">{{ getUserName(uid) }}</span>
+                    <select v-model="localObj.user[uid]" class="perm-select">
+                      <option value="read">Read Only</option>
+                      <option value="edit">Can Edit</option>
+                    </select>
+                  </span>
+                  <button class="remove-user-btn" @click="removeUser(uid)">×</button>
+                </div>
+
+                <!-- Add User Row -->
+                <div class="add-user-row">
+                  <div class="input-wrapper">
+                    <input 
+                      v-model="userSearchInput" 
+                      @input="handleUserSearch"
+                      placeholder="Search user by name..." 
+                      class="user-search-input"
+                    />
+                    <ul v-if="userSuggestions.length > 0" class="user-dropdown">
+                      <li v-for="u in userSuggestions" :key="u.id" @click="addUser(u)">
+                        {{ u.username }} <small>({{ u.id }})</small>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="form-group">
               <label>Tags</label>
               <div class="modern-tag-container">
@@ -177,7 +220,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -187,18 +230,106 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close', 'save', 'upload', 'create-tag', 'refresh-assets'])
 
-// Initialize local object with default array for cardImages
+// Initialize local object
 const initObj = JSON.parse(JSON.stringify(props.modelValue))
 if (!initObj.cardImages) initObj.cardImages = []
+if (!initObj.user) initObj.user = {}
 const localObj = ref(initObj)
-const isDragging = ref(false) // 新增：拖拽状态
+const isDragging = ref(false) 
+
+const isAdmin = computed(() => {
+  const userInfo = localStorage.getItem('userInfo')
+  return userInfo && JSON.parse(userInfo).role === 'admin'
+})
+
+// --- User Permissions Logic ---
+const allUsers = ref([])
+const userSearchInput = ref('')
+
+const canManageAccess = computed(() => {
+  if (isAdmin.value) return true
+  const uid = JSON.parse(localStorage.getItem('userInfo'))?.id
+  return localObj.value.user && localObj.value.user[uid] === 'owner'
+})
+
+const fetchUsers = async (query = '') => {
+  if (!canManageAccess.value) return
+  try {
+    const token = localStorage.getItem('authToken')
+    const url = query ? `/api/users/search?q=${query}` : (isAdmin.value ? '/api/users' : '/api/users/search?q=')
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (res.ok) {
+      allUsers.value = await res.json()
+    }
+  } catch (e) {
+    console.error("Failed to fetch users", e)
+  }
+}
+
+const sharedUsers = computed(() => {
+  const entries = Object.entries(localObj.value.user || {})
+  const result = {}
+  entries.forEach(([uid, perm]) => {
+    if (perm !== 'owner') result[uid] = perm
+  })
+  return result
+})
+
+const getOwnerId = () => {
+  return Object.keys(localObj.value.user || {}).find(uid => localObj.value.user[uid] === 'owner') || ''
+}
+
+const getOwnerName = () => {
+  const oid = getOwnerId()
+  return allUsers.value.find(u => u.id === oid)?.username || oid || 'Unknown'
+}
+
+const getUserName = (uid) => {
+  return allUsers.value.find(u => u.id === uid)?.username || uid
+}
+
+const userSuggestions = computed(() => {
+  const q = userSearchInput.value.trim().toLowerCase()
+  if (!q) return []
+  return allUsers.value.filter(u => 
+    u.username.toLowerCase().includes(q) && 
+    !localObj.value.user[u.id]
+  )
+})
+
+const addUser = (user) => {
+  if (!localObj.value.user) localObj.value.user = {}
+  localObj.value.user[user.id] = 'read'
+  userSearchInput.value = ''
+}
+
+const removeUser = (uid) => {
+  delete localObj.value.user[uid]
+}
+
+const handleUserSearch = () => {
+  if (userSearchInput.value.trim().length > 0) {
+    fetchUsers(userSearchInput.value.trim())
+  }
+}
 
 // Watch props change
 watch(() => props.modelValue, (newVal) => {
   const copy = JSON.parse(JSON.stringify(newVal))
   if (!copy.cardImages) copy.cardImages = []
+  if (!copy.user) copy.user = {}
   localObj.value = copy
 }, { deep: true })
+
+onMounted(() => {
+  fetchUsers()
+})
+
+// Remove old computed/methods
+// const sharedWithText = computed(() => ... )
+// const updateSharedWith = (e) => ... 
 
 // --- Logic: Card Images ---
 const isCardSelected = (file) => localObj.value.cardImages.includes(file)
@@ -218,7 +349,7 @@ const handleDeleteClick = async (file) => {
   if (confirmDeleteFile.value === file) {
     // Second click: Do Delete
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('authToken')
       const res = await fetch(`/api/objects/${localObj.value.id}/assets/delete`, {
         method: 'POST',
         headers: { 
@@ -410,4 +541,112 @@ const save = () => {
 .btn-primary:hover { opacity: 0.8; }
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; }}
+
+/* User Permissions UI */
+.user-permissions-list {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 5px;
+}
+
+.user-perm-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.user-perm-item.owner {
+  background: #f0f7ff;
+  border: 1px solid #cce5ff;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.user-badge {
+  font-size: 10px;
+  background: #007aff;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.user-id-hint {
+  font-size: 11px;
+  color: #999;
+}
+
+.perm-select {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 2px 4px;
+  outline: none;
+}
+
+.remove-user-btn {
+  background: none;
+  border: none;
+  color: #ff3b30;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.add-user-row {
+  margin-top: 10px;
+}
+
+.user-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.user-dropdown {
+  position: absolute;
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  list-style: none;
+  padding: 5px 0;
+  margin-top: 5px;
+}
+
+.user-dropdown li {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.user-dropdown li:hover {
+  background: #f5f5f7;
+}
+
+.user-dropdown li small {
+  color: #999;
+}
 </style>
