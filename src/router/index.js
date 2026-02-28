@@ -34,10 +34,24 @@ const routes = [
     props: { type: 'post', mode: 'view' }
   },
   { path: '/admin',
-    name: 'Admin',
-    component: () => import('../views/ObjectsPage.vue'),
-    props: { type: 'all', mode: 'admin' },
-    meta: { requiresAuth: true } // 3. 标记此路由需要验证
+    component: () => import('../views/AdminLayout.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      {
+        path: '',
+        redirect: '/admin/objects'
+      },
+      {
+        path: 'objects',
+        name: 'AdminObjects',
+        component: () => import('../views/AdminObjectsPage.vue')
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('../views/AdminUsersPage.vue')
+      }
+    ]
   },
   { path: '/cv',
     name: 'CV',
@@ -60,9 +74,9 @@ const router = createRouter({
 
 // 4. 添加全局路由守卫 (核心拦截逻辑)
 router.beforeEach(async (to, from, next) => {
+  const token = localStorage.getItem('authToken')
+
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('authToken')
-    
     if (!token) {
       next('/login')
       return
@@ -75,10 +89,20 @@ router.beforeEach(async (to, from, next) => {
       })
       
       if (res.ok) {
+        const data = await res.json()
+        const user = data.user
+        
+        // Check for admin requirement
+        if (to.meta.requiresAdmin && user.role !== 'admin') {
+          next('/')
+          return
+        }
+
         next() // 验证通过，放行
       } else {
         // Token 无效（过期或密码已改），清除本地存储并跳回登录页
         localStorage.removeItem('authToken')
+        localStorage.removeItem('userInfo')
         next('/login')
       }
     } catch (e) {

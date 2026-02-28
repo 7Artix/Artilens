@@ -82,10 +82,15 @@ const getTypeClass = (type) => {
 
 .badge-capsule {
   backdrop-filter: blur(10px);
-  padding: 4px 12px; border-radius: 20px;
+  padding: 4px 10px; border-radius: 20px;
   color: white; font-size: 12px; font-weight: 600; text-transform: uppercase;
   border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  /* 优化垂直居中方案 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
 }
 .badge-capsule.pinned { 
   background: rgba(50, 215, 75, 0.6); 
@@ -118,7 +123,7 @@ const getTypeClass = (type) => {
 .traffic-btn.close { background: #ff453a; }
 .traffic-btn.close svg { fill: rgba(50,0,0,0.6); }
 
-.card-footer { padding: 16px; }
+.card-footer { padding: 8px 16px 16px 16px; }
 .title { font-weight: 600; font-size: 22px; margin-bottom: 12px; margin-top: 0px; color: #1d1d1f; }
 .meta-bottom { display: flex; align-items: center; justify-content: space-between; overflow: hidden; }
 .scroll-fade { white-space: nowrap; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; mask-image: linear-gradient(to right, black 95%, transparent 100%); -webkit-mask-image: linear-gradient(to right, black 95%, transparent 100%); }

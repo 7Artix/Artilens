@@ -9,13 +9,11 @@
         v-for="obj in filteredObjects" 
         :key="obj.id" 
         :obj="obj"
-        :mode="mode"
+        mode="view"
         :is-pinned="isPinned(obj.id)"
         :all-tags="allTags"
         @view="viewDetail"
         @toggle-pin="togglePin"
-        @edit="openEditor"
-        @delete="handleDelete"
       />
     </section>
 
@@ -53,26 +51,17 @@
         <div class="blur-glow-bg tags-glow" :class="{ visible: showAllTags }"></div>
 
         <div class="tags-drawer-content" :class="{ open: showAllTags }">
-          <!-- 收缩状态: # 图标 -->
           <div class="hash-icon-wrapper" :class="{ hidden: showAllTags }">
-            <svg class="hash-icon" viewBox="0 0 24 24">
-              <line x1="10" y1="3" x2="8" y2="21" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
-              <line x1="16" y1="3" x2="14" y2="21" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
-              <line x1="4.4" y1="9" x2="20.4" y2="9" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
-              <line x1="3.6" y1="15" x2="19.6" y2="15" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
-            </svg>
+            <div class="hash-icon-mask"
+              :style="{ maskImage: `url(/api/static/site/number.svg)`, WebkitMaskImage: `url(/api/static/site/number.svg)` }">
+            </div>
           </div>
 
-          <!-- 展开状态: 列表内容 -->
           <div class="drawer-inner" :class="{ visible: showAllTags }">
             <div class="drawer-scroll-area">
               <div class="tags-flex-grid">
                 <div v-for="tag in unselectedTags" :key="tag.id" class="tag-pill normal" @click="toggleTag(tag.id)">
                   {{ tag.name }} <span class="count">{{ tag.count }}</span>
-                  <div v-if="mode === 'admin'" class="tag-mini-actions" @click.stop>
-                    <span @click.stop="renameTag(tag)" class="mini-btn">✎</span>
-                    <span @click.stop="deleteTag(tag.id)" class="mini-btn danger">×</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -87,13 +76,6 @@
         </div>
       </div>
 
-      <div v-if="mode === 'admin'" class="create-wrapper">
-          <div class="blur-glow-bg create-glow"></div>
-          <button class="create-add" @click="handleCreate" title="New Object">
-            <svg viewBox="0 0 24 24" class="plus-svg"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          </button>
-      </div>
-
       <!-- Search -->
       <div class="search-wrapper" 
            @mouseenter="isHoveringSearch = true"
@@ -101,14 +83,12 @@
         
         <div class="blur-glow-bg search-glow" :class="{ visible: isSearchExpanded }"></div>
         
-        <!-- Main Interactive Box -->
         <div class="search-interactive-box" 
              :class="{ 
                'expanded-width': isSearchExpanded, 
                'expanded-list': showSearchResults 
              }">
           
-          <!-- Input Area (Bottom) -->
           <div class="search-input-area">
             <input 
               v-model="searchQuery" 
@@ -117,12 +97,21 @@
               :class="{ visible: isSearchExpanded }"
             />
             <div class="search-icon-wrapper" @click="clearSearch">
-              <span v-if="searchQuery" class="clear-x">×</span>
-              <svg v-else viewBox="-1 12 16 18" class="mag-glass"><path d="M14.298,27.202l-3.87-3.87c0.701-0.929,1.122-2.081,1.122-3.332c0-3.06-2.489-5.55-5.55-5.55c-3.06,0-5.55,2.49-5.55,5.55 c0,3.061,2.49,5.55,5.55,5.55c1.251,0,2.403-0.421,3.332-1.122l3.87,3.87c0.151,0.151,0.35,0.228,0.548,0.228 s0.396-0.076,0.548-0.228C14.601,27.995,14.601,27.505,14.298,27.202z M1.55,20c0-2.454,1.997-4.45,4.45-4.45 c2.454,0,4.45,1.997,4.45,4.45S8.454,24.45,6,24.45C3.546,24.45,1.55,22.454,1.55,20z"/></svg>
+              <!-- <span v-if="searchQuery" class="clear-x">×</span>
+              <svg v-else viewBox="-1 12 16 18" class="mag-glass"><path d="M14.298,27.202l-3.87-3.87c0.701-0.929,1.122-2.081,1.122-3.332c0-3.06-2.489-5.55-5.55-5.55c-3.06,0-5.55,2.49-5.55,5.55 c0,3.061,2.49,5.55,5.55,5.55c1.251,0,2.403-0.421,3.332-1.122l3.87,3.87c0.151,0.151,0.35,0.228,0.548,0.228 s0.396-0.076,0.548-0.228C14.601,27.995,14.601,27.505,14.298,27.202z M1.55,20c0-2.454,1.997-4.45,4.45-4.45 c2.454,0,4.45,1.997,4.45,4.45S8.454,24.45,6,24.45C3.546,24.45,1.55,22.454,1.55,20z"/></svg> -->
+              <div v-if="searchQuery" class="search-clear-icon-wrapper">
+                <div class="search-clear-icon-mask"
+                  :style="{ maskImage: `url(/api/static/site/xmark.svg)`, WebkitMaskImage: `url(/api/static/site/xmark.svg)` }">
+                </div>
+              </div>
+              <div v-else="searchQuery" class="search-mag-icon-wrapper">
+                <div class="search-mag-icon-mask"
+                  :style="{ maskImage: `url(/api/static/site/magnifyingglass.svg)`, WebkitMaskImage: `url(/api/static/site/magnifyingglass.svg)` }">
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Matching Tags List (Top - Expands Upwards) -->
           <div class="search-results-list">
             <div class="results-inner-padding">
               <div v-if="tagSuggestions.length > 0" class="tags-flex-grid">
@@ -136,36 +125,21 @@
         </div>
       </div>
     </div>
-
-    <!-- Object Edit Pop-up -->
-    <!-- [FIX] Added @refresh-assets handler -->
-    <ObjectEdit
-      v-if="editingObj"
-      v-model="editingObj"
-      :assets="projectAssets"
-      :all-tags="allTags"
-      @close="editingObj = null"
-      @save="saveConfig"
-      @upload="handleUploadFiles"
-      @create-tag="handleCreateNewTag"
-      @refresh-assets="fetchAssets" 
-    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue' // 修改: 添加 watch
-import { useRouter, useRoute } from 'vue-router'     // 修改: 添加 useRoute
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import ObjectProfile from '../components/ObjectProfile.vue' 
-import ObjectEdit from '../components/ObjectEdit.vue'
 import PageFooter from '../components/PageFooter.vue'
 import { NAV_HEIGHT } from '../config/constants'
 import BackTop from '../components/BackTop.vue'
-import DynamicWave from '../components/DynamicWave.vue' // 修改: 补充导入组件
+import DynamicWave from '../components/DynamicWave.vue'
 
-const props = defineProps(['type', 'mode'])
+const props = defineProps(['type'])
 const router = useRouter()
-const route = useRoute() // 新增: 获取当前路由对象
+const route = useRoute()
 
 const allObjects = ref([])
 const allTags = ref([])
@@ -173,43 +147,20 @@ const pinnedIds = ref([])
 const searchQuery = ref('')
 const selectedTags = ref([])
 const showAllTags = ref(false)
-const editingObj = ref(null)
-const projectAssets = ref([])
 const showLimitToast = ref(false)
 
-// Search state
 const isHoveringSearch = ref(false)
 const searchInput = ref(null)
 
-// --- Auth Helper ---
-const authFetch = (url, options = {}) => {
-  const token = localStorage.getItem('authToken')
-  const headers = { 
-    ...options.headers,
-    'Authorization': `Bearer ${token}` 
-  }
-  return fetch(url, { ...options, headers })
-}
+const isSearchExpanded = computed(() => isHoveringSearch.value || searchQuery.value.length > 0)
+const showSearchResults = computed(() => isHoveringSearch.value && searchQuery.value.length > 0 && tagSuggestions.value.length > 0)
 
-// 1. Is Capsule? (Width expansion)
-// Triggered if user types anything OR hovers
-const isSearchExpanded = computed(() => {
-  return isHoveringSearch.value || searchQuery.value.length > 0
-})
-
-// 2. Is List? (Height expansion)
-// Triggered ONLY if there is a query AND hover AND matches found
-const showSearchResults = computed(() => {
-  return isHoveringSearch.value && searchQuery.value.length > 0 && tagSuggestions.value.length > 0
-})
-
-// --- Filter Logic ---
 const filteredObjects = computed(() => {
   let list = allObjects.value.filter(obj => {
-    if (props.type !== 'all' && obj.type !== props.type) return false
+    if (props.type && props.type !== 'all' && obj.type !== props.type) return false
     const q = searchQuery.value.toLowerCase()
-    const matchText = obj.name.toLowerCase().includes(q) || obj.description.toLowerCase().includes(q)
-    const matchTags = selectedTags.value.every(tid => obj.tags.includes(tid))
+    const matchText = obj.name.toLowerCase().includes(q) || (obj.description && obj.description.toLowerCase().includes(q))
+    const matchTags = selectedTags.value.every(tid => obj.tags && obj.tags.includes(tid))
     return matchText && matchTags
   })
 
@@ -223,47 +174,37 @@ const filteredObjects = computed(() => {
 })
 
 const unselectedTags = computed(() => allTags.value.filter(t => !selectedTags.value.includes(t.id)))
-
 const tagSuggestions = computed(() => {
   if (!searchQuery.value) return []
   return allTags.value.filter(t => t.name.toLowerCase().includes(searchQuery.value.toLowerCase()) && !selectedTags.value.includes(t.id))
 })
 
-// --- Methods ---
 const init = async () => {
+  const token = localStorage.getItem('authToken')
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+  
   const [oRes, tRes, pRes] = await Promise.all([
-    fetch('/api/objects/list'), 
+    fetch('/api/objects/list', { headers }), 
     fetch('/api/tags/list'),
     fetch('/api/pinned/list')
   ])
   allObjects.value = await oRes.json()
   allTags.value = await tRes.json()
   pinnedIds.value = await pRes.json()
-
-  // 数据加载完成后，应用 URL 中的 tag 参数
   applyUrlParams()
 }
 
-// 新增: 根据 URL 参数应用筛选
 const applyUrlParams = () => {
   const tagParam = route.query.tag
   if (tagParam && allTags.value.length > 0) {
-    // 查找对应名称的 Tag (忽略大小写)
     const targetTag = allTags.value.find(t => t.name.toLowerCase() === tagParam.toLowerCase())
-    if (targetTag) {
-      selectedTags.value = [targetTag.id]
-    }
+    if (targetTag) selectedTags.value = [targetTag.id]
   } else {
-    // 如果 URL 中没有 tag 参数 (例如点击了 'Explore All Projects')，则清空筛选
     selectedTags.value = []
   }
 }
 
-// 新增: 监听路由参数变化 (处理导航栏点击跳转)
-watch(() => route.query.tag, () => {
-  applyUrlParams()
-})
-
+watch(() => route.query.tag, applyUrlParams)
 onMounted(init)
 
 const clearSearch = () => {
@@ -278,7 +219,6 @@ const toggleTag = (id) => {
   if (index > -1) {
     selectedTags.value.splice(index, 1)
   } else {
-    // Limit to 7 tags
     if (selectedTags.value.length >= 7) {
       showLimitToast.value = true
       setTimeout(() => showLimitToast.value = false, 2500)
@@ -293,95 +233,19 @@ const getTagName = (id) => allTags.value.find(t => t.id === id)?.name || id
 const isPinned = (id) => pinnedIds.value.includes(id)
 
 const togglePin = async (id) => {
+  const token = localStorage.getItem('authToken')
+  if (!token) return
+
   let newPinned = [...pinnedIds.value]
   if (newPinned.includes(id)) newPinned = newPinned.filter(pid => pid !== id)
   else newPinned.push(id)
   
-  // 使用 authFetch
-  const res = await authFetch('/api/pinned/update', {
+  const res = await fetch('/api/pinned/update', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body: JSON.stringify(newPinned)
   })
   if ((await res.json()).success) pinnedIds.value = newPinned
-}
-
-// [FIX] Extract fetch logic to reusable function
-const fetchAssets = async () => {
-  if (!editingObj.value) return
-  const res = await fetch(`/api/objects/${editingObj.value.id}/assets`)
-  projectAssets.value = await res.json()
-}
-
-// CRUD
-const handleCreate = async () => {
-  // 使用 authFetch
-  const res = await authFetch('/api/objects/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-  const result = await res.json()
-  if (result.success) {
-    await init()
-    openEditor(result.data)
-  }
-}
-
-const openEditor = async (obj) => {
-  // [FIX] Prevent 404: Clear assets before showing the modal
-  projectAssets.value = [] 
-  
-  editingObj.value = JSON.parse(JSON.stringify(obj))
-  if (!editingObj.value.tags) editingObj.value.tags = []
-  
-  // Now fetch the correct assets
-  await fetchAssets()
-}
-
-const saveConfig = async (objData) => {
-  // 使用 authFetch
-  await authFetch('/api/objects/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(objData) })
-  editingObj.value = null
-  init()
-}
-
-const handleDelete = async (id) => {
-  if (!confirm("Are you sure?")) return
-  // 使用 authFetch
-  const res = await authFetch('/api/objects/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-  if ((await res.json()).success) init()
-}
-
-const renameTag = async (tag) => {
-  const newName = prompt("Rename:", tag.name)
-  if (newName && newName !== tag.name) {
-    // 使用 authFetch
-    await authFetch('/api/tags/modify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: tag.id, newName }) })
-    init()
-  }
-}
-const deleteTag = async (id) => {
-  if (!confirm("Delete tag?")) return
-  // 使用 authFetch
-  await authFetch('/api/tags/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-  init()
-}
-
-const handleCreateNewTag = async (name, callback) => {
-  // 使用 authFetch
-  const res = await authFetch('/api/tags/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-  const result = await res.json()
-  if (result.success) { 
-    allTags.value.push(result.data)
-    callback(result.data.id) // Call callback to update local state in child
-  }
-}
-
-const handleUploadFiles = async (files) => {
-  const formData = new FormData()
-  for (let file of files) formData.append('files', file)
-  // 使用 authFetch
-  await authFetch(`/api/objects/${editingObj.value.id}/upload`, { method: 'POST', body: formData })
-  
-  // [FIX] Use the shared fetch function
-  await fetchAssets()
 }
 
 const viewDetail = (id) => router.push(`/object/${id}`)
@@ -462,7 +326,7 @@ const viewDetail = (id) => router.push(`/object/${id}`)
   padding: 20px; margin-right: -20px; margin-bottom: -20px;
 }
 
-.tag-pill { cursor: pointer; font-size: 12px; padding: 6px 14px; border-radius: 20px; transition: 0.2s; white-space: nowrap; user-select: none; }
+.tag-pill { cursor: pointer; font-size: 12px; padding: 6px 10px 6px 12px; border-radius: 20px; transition: 0.2s; white-space: nowrap; user-select: none; }
 .tag-pill.active { 
   background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
@@ -471,7 +335,7 @@ const viewDetail = (id) => router.push(`/object/${id}`)
 }
 .tag-pill.active:hover { background: rgba(255, 255, 255, 0.6); }
 
-.close-icon { font-style: normal; font-size: 16px; line-height: 1; color: #888; transition: color 0.2s; }
+.close-icon { font-style: normal; font-size: 16px; line-height: 1; color: #555555; transition: color 0.2s; }
 .tag-pill.active:hover .close-icon { color: #000; }
 
 /* --- All Tags Drawer --- */
@@ -486,9 +350,88 @@ const viewDetail = (id) => router.push(`/object/${id}`)
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: bottom right;
 }
 .tags-drawer-content.open { width: 320px; height: 320px; }
-.hash-icon-wrapper { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
-.hash-icon { width: 22px; height: 22px; color: #555; }
+
+.hash-icon-wrapper {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.1s;
+    overflow: visible;
+}
 .hash-icon-wrapper.hidden { opacity: 0; pointer-events: none; }
+
+.hash-icon-mask {
+  width: 20px; 
+  height: 20px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: translate(0px, 0px);
+  -webkit-transform: translate(0px, 0px);
+  
+  flex-shrink: 0;
+}
+
+.search-mag-icon-wrapper {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.1s;
+    overflow: visible;
+}
+.search-mag-icon-wrapper.hidden { opacity: 0; pointer-events: none; }
+
+.search-mag-icon-mask {
+  width: 18px; 
+  height: 18px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: translate(1px, 0px);
+  -webkit-transform: translate(1px, 0px);
+  
+  flex-shrink: 0;
+}
+
+.search-clear-icon-wrapper {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.1s;
+    overflow: visible;
+}
+.search-clear-icon-wrapper.hidden { opacity: 0; pointer-events: none; }
+
+.search-clear-icon-mask {
+  width: 12px; 
+  height: 12px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: translate(1px, 0px);
+  -webkit-transform: translate(1px, 0px);
+  
+  flex-shrink: 0;
+}
+
 .drawer-inner { display: flex; flex-direction: column; height: 100%; width: 100%; opacity: 0; transition: opacity 0.2s; }
 .drawer-inner.visible { opacity: 1; transition-delay: 0.1s; }
 .drawer-bottom-bar { padding: 10px 16px; font-size: 11px; color: #888; border-top: 1px solid rgba(0,0,0,0.04); text-transform: uppercase; letter-spacing: 0.5px; margin-top: auto; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
@@ -496,7 +439,7 @@ const viewDetail = (id) => router.push(`/object/${id}`)
 .clear-btn:hover { opacity: 0.7; }
 .drawer-scroll-area { flex: 1; overflow-y: auto; padding: 12px; min-height: 0; }
 .tags-flex-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag-pill.normal { background: rgba(0, 0, 0, 0.05); color: #333; display: inline-flex; align-items: center; padding: 5px 12px; }
+.tag-pill.normal { background: rgba(0, 0, 0, 0.05); color: #555555; display: inline-flex; align-items: center; padding: 6px 10px 6px 12px; }
 .tag-pill.normal:hover { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); }
 .tag-pill .count { font-size: 9px; opacity: 0.4; margin-left: 4px; vertical-align: top; }
 .tag-mini-actions { margin-left: 6px; display: flex; gap: 4px; opacity: 0.4; transition: 0.2s; }
@@ -553,8 +496,6 @@ const viewDetail = (id) => router.push(`/object/${id}`)
   width: 50px; height: 50px; position: absolute; right: 0; bottom: 0; 
   display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3;
 }
-.mag-glass { width: 20px; height: 20px; fill: #555; }
-.clear-x { font-size: 22px; color: #666; font-weight: 300; line-height: 1; }
 
 /* Results List (Top part) */
 .search-results-list {
@@ -567,21 +508,5 @@ const viewDetail = (id) => router.push(`/object/${id}`)
 
 .results-inner-padding { padding: 12px; padding-bottom: 0; }
 .no-results { font-size: 12px; color: #888; text-align: center; padding: 10px; }
-
-/* --- Create --- */
-.create-wrapper { position: relative; }
-.create-add {
-  width: 50px; height: 50px; border-radius: 50%; border: none;
-  background: rgba(0, 255, 0, 0.5); 
-  backdrop-filter: blur(16px);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255,255,255,0.4);
-  color: white; 
-  position: relative; z-index: 2;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: 0.2s ease; padding: 0;
-}
-.plus-svg { width: 24px; height: 24px; fill: white; }
-.create-add:hover { transform: scale(1.05); background: #00cc55; }
 
 </style>

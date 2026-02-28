@@ -7,11 +7,19 @@
       <!-- 状态 1: 未登录，显示输入框 -->
       <div v-if="!isLoggedIn" class="form-group">
         <input 
+          type="text" 
+          v-model="username" 
+          placeholder="Username" 
+          @keyup.enter="handleLogin"
+          class="login-input"
+        />
+        <input 
           type="password" 
           v-model="password" 
           placeholder="Password" 
           @keyup.enter="handleLogin"
           ref="passwordInput"
+          class="login-input"
         />
         <button @click="handleLogin" :disabled="loading">
           {{ loading ? 'Verifying...' : 'Unlock' }}
@@ -37,6 +45,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import DynamicWave from '../components/DynamicWave.vue'
 
+const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
@@ -49,13 +58,15 @@ onMounted(() => {
   const token = localStorage.getItem('authToken')
   if (token) {
     isLoggedIn.value = true
-  } else {
-    // 自动聚焦输入框
-    passwordInput.value?.focus()
   }
 })
 
 const handleLogin = async () => {
+  if (!username.value || !password.value) {
+    error.value = 'Please enter username and password'
+    return
+  }
+
   loading.value = true
   error.value = ''
   
@@ -63,16 +74,26 @@ const handleLogin = async () => {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: password.value })
+      body: JSON.stringify({ 
+        username: username.value,
+        password: password.value 
+      })
     })
     const data = await res.json()
     
     if (data.success) {
       localStorage.setItem('authToken', data.token)
+      // Store user info if needed
+      localStorage.setItem('userInfo', JSON.stringify(data.user))
       isLoggedIn.value = true
-      router.push('/admin') // 登录成功直接跳转
+      
+      if (data.user.role === 'admin') {
+        router.push('/admin/objects')
+      } else {
+        router.push('/')
+      }
     } else {
-      error.value = 'Access Denied'
+      error.value = data.message || 'Access Denied'
     }
   } catch (e) {
     error.value = 'Server Error'

@@ -17,6 +17,7 @@ export const DATA_PATH = path.isAbsolute(rawDataPath)
 
 export const OBJECTS_PATH = path.join(DATA_PATH, 'objects');
 export const TAGS_FILE = path.join(DATA_PATH, 'config/tags.yaml');
+export const USERS_FILE = path.join(DATA_PATH, 'config/users.yaml');
 
 console.log('--- Config Configuration ---');
 console.log('Project Root:', PROJECT_ROOT);

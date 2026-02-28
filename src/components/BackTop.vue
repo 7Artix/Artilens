@@ -6,9 +6,11 @@
       @click="scrollToTop"
       title="Back to Top"
     >
-      <svg viewBox="0 0.5 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 15L12 9L6 15" />
-      </svg>
+      <div class="chevron-icon-wrapper">
+        <div class="chevron-icon-mask"
+          :style="{ maskImage: `url(/api/static/site/chevron.up.svg)`, WebkitMaskImage: `url(/api/static/site/chevron.up.svg)` }">
+        </div>
+      </div>
     </div>
   </transition>
 </template>
@@ -67,9 +69,33 @@ onUnmounted(() => {
   transform: scale(1.05);
 }
 
-.icon {
-  width: 24px;
-  height: 24px;
+.chevron-icon-wrapper {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.1s;
+}
+
+.chevron-icon-mask {
+  width: 16px; 
+  height: 16px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: translate(0px, -1px);
+  -webkit-transform: translate(0px, -1px);
+  
+  flex-shrink: 0;
 }
 
 .fade-enter-active,

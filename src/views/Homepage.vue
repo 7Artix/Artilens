@@ -8,10 +8,6 @@
         class="column"
         :ref="el => { if(el) columnRefs[colIndex] = el }"
       >
-        <!-- 
-          为了实现无缝滚动，我们需要在容器内移动这个 inner-strip。
-          数据结构是 [Data, Data, Data]，这样无论向哪个方向滚都能无缝衔接。
-        -->
         <div 
           class="inner-strip"
           :ref="el => { if(el) stripRefs[colIndex] = el }"
@@ -59,6 +55,22 @@
         </div>
       </div>
     </Transition>
+
+    <!-- 播放/暂停按钮 -->
+    <div 
+      class="play-pause-btn" 
+      @click="togglePause"
+      :title="isPaused ? 'Play' : 'Pause'"
+    >
+      <div class="icon-wrapper">
+        <div class="icon-mask"
+          :style="{ 
+            maskImage: `url(/api/static/site/${isPaused ? 'play.fill.svg' : 'pause.fill.svg'})`, 
+            WebkitMaskImage: `url(/api/static/site/${isPaused ? 'play.fill.svg' : 'pause.fill.svg'})` 
+          }">
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -98,6 +110,7 @@ let scrollVelocity = 0 // 滚轮带来的额外速度
 let isHovering = false
 let idleTimer = null
 let isModalOpen = false
+const isPaused = ref(false)
 
 // Modal 状态
 const showModal = ref(false)
@@ -107,9 +120,12 @@ const columnRefs = ref([])
 // --- 初始化数据 ---
 const initData = async () => {
   try {
+    const token = localStorage.getItem('authToken')
+    const config = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {}
+    
     // 获取对象列表
     const [objRes, tagRes] = await Promise.all([
-      axios.get('/api/objects/list'),
+      axios.get('/api/objects/list', config),
       axios.get('/api/tags/list').catch(() => ({ data: [] })) // 容错
     ])
     
@@ -226,7 +242,7 @@ const initResizeObserver = () => {
 // --- 动画循环 ---
 const updatePhysics = () => {
   // 1. 处理目标速度
-  let target = isModalOpen ? 0 : (isHovering ? HOVER_SPEED : BASE_SPEED)
+  let target = (isModalOpen || isPaused.value) ? 0 : (isHovering ? HOVER_SPEED : BASE_SPEED)
   
   // 2. 速度平滑插值 (Lerp)
   // currentSpeed 趋向于 target
@@ -301,7 +317,11 @@ const resetIdleTimer = () => {
   if (idleTimer) clearTimeout(idleTimer)
   idleTimer = setTimeout(() => {
     isHovering = false
-  }, 2000)
+  }, 1500)
+}
+
+const togglePause = () => {
+  isPaused.value = !isPaused.value
 }
 
 const handleCardClick = (card) => {
@@ -490,5 +510,61 @@ onUnmounted(() => {
 .modal-fade-leave-to {
   opacity: 0;
   transform: scale(0.9) translateY(20px);
+}
+
+.play-pause-btn {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  z-index: 900;
+  
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+  
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease, transform 0.3s ease;
+  color: #555;
+}
+
+.play-pause-btn:hover {
+  background: rgba(200, 200, 200, 0.5); 
+  transform: scale(1.05);
+}
+
+.icon-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.1s;
+}
+
+.icon-mask {
+  width: 20px; 
+  height: 20px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  
+  -webkit-mask-position: center;
+  mask-position: center;
+  
+  flex-shrink: 0;
 }
 </style>

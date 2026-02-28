@@ -393,14 +393,6 @@ const viewDetail = (id) => router.push(`/object/${id}`)
     width: 100%; height: 100%; position: relative;
 }
 
-.hash-icon-wrapper {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    transition: opacity 0.1s;
-    overflow: visible;
-}
-.hash-icon-wrapper.hidden { opacity: 0; pointer-events: none; }
-
-
 .tag-panel-content {
     opacity: 0; transition: opacity 0.3s ease 0.1s;
     height: 100%; display: flex; flex-direction: column;
@@ -409,17 +401,16 @@ const viewDetail = (id) => router.push(`/object/${id}`)
 .panel-scroll { flex: 1; overflow-y: auto; padding: 20px; }
 .panel-footer { padding: 10px 20px; border-top: 1px solid rgba(0,0,0,0.05); text-align: right; color: #999; font-size: 11px; text-transform: uppercase; }
 
-/* --- Shared --- */
 .header-bottom-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
 .fixed-item { 
     background: rgba(255,255,255,0.8); 
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.4); 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
+    box-shadow: 0 0px 10px rgba(0,0,0,0.08); 
 }
 
 .tags-flex-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag-pill { font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer; user-select: none; transition: 0.2s; }
+.tag-pill { font-size: 12px; padding: 6px 10px 6px 12px; border-radius: 20px; cursor: pointer; user-select: none; transition: 0.2s; }
 .tag-pill.normal { background: rgba(0, 0, 0, 0.05); color: #333; }
 .tag-pill.normal:hover { background: rgba(0,0,0,0.1); }
 .tag-pill.active {
@@ -429,7 +420,7 @@ const viewDetail = (id) => router.push(`/object/${id}`)
     display: flex; align-items: center; gap: 8px;
 }
 
-.close-icon { font-style: normal; font-size: 16px; line-height: 1; color: #888; transition: color 0.2s; }
+.close-icon { font-style: normal; font-size: 16px; line-height: 1; color: #555555; transition: color 0.2s; }
 .tag-pill.active:hover .close-icon { color: #000; }
 
 .results-body { 
@@ -438,6 +429,7 @@ const viewDetail = (id) => router.push(`/object/${id}`)
     margin: 0 auto;
     padding: 80px 40px 40px 40px;
     box-sizing: border-box;
+    z-index: 800;
 }
 .empty-state {
     padding: 20vh 0 0 0;
@@ -455,49 +447,75 @@ const viewDetail = (id) => router.push(`/object/${id}`)
 .corner-stack > * { pointer-events: auto; }
 
 .search-icon-mask {
-  width: 16px;
+  width: 16px; 
   height: 16px;
-  background-color: #333333;
+  
+  background-color: #555555;
+  
   -webkit-mask-size: contain;
   mask-size: contain;
+  
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  
   -webkit-mask-position: center;
   mask-position: center;
-  margin: 0px 15px 1px 2px;
+  transform: translate(0px, -1px);
+  -webkit-transform: translate(0px, -1px);
+  
   flex-shrink: 0;
+
+  margin: 0 10px 0 0;
 }
 
 .x-icon-mask {
-  width: 12px;
+  width: 12px; 
   height: 12px;
-  background-color: #333333;
+  
+  background-color: #555555;
+  
   -webkit-mask-size: contain;
   mask-size: contain;
+  
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  
   -webkit-mask-position: center;
   mask-position: center;
-  margin: 0px 2px 2px 0px;
+  transform: translate(0px, -1px);
+  -webkit-transform: translate(0px, -1px);
+  
   flex-shrink: 0;
+  margin: 0 4px 0 0;
   transition: background-color 0.2s;
 }
 .x-icon-mask:hover {
     background-color: #000000;
 }
 
+.hash-icon-wrapper {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.1s;
+}
+.hash-icon-wrapper.hidden { opacity: 0; pointer-events: none; }
+
 .hash-icon-mask {
-  width: 20px;
+  width: 20px; 
   height: 20px;
-  background-color: #333333;
-  -webkit-mask-size: 18px 18px;
-  mask-size: 18px 18px;
+  
+  background-color: #555555;
+  
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  
   -webkit-mask-position: center;
   mask-position: center;
-  margin: 0px 0px 0px 0px;
+  transform: translate(0px, 0px);
+  -webkit-transform: translate(0px, 0px);
+  
   flex-shrink: 0;
-  overflow: visible
 }
 </style>

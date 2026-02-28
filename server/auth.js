@@ -1,21 +1,18 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
+import { getUsers, verifyPassword } from './utils.js';
 
 dotenv.config();
 
 const SECRET_KEY = process.env.JWT_SECRET || 'default_secret';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-// 辅助函数：生成密码的指纹（Hash），防止直接把密码暴露在 Token 里
-const getPasswordHash = () => {
-    return crypto.createHash('md5').update(ADMIN_PASSWORD).digest('hex');
-};
-
-// 生成 Token：把密码指纹放进去
-export const generateToken = () => {
-    // payload 里增加一个 pwh (password hash) 字段
-    return jwt.sign({ role: 'admin', pwh: getPasswordHash() }, SECRET_KEY, { expiresIn: '7d' });
+// 生成 Token：包含用户ID, 用户名和角色
+export const generateToken = (user) => {
+    return jwt.sign({ 
+        id: user.id,
+        username: user.username,
+        role: user.role 
+    }, SECRET_KEY, { expiresIn: '7d' });
 };
 
 // 中间件：验证 Token
@@ -28,9 +25,11 @@ export const verifyToken = (req, res, next) => {
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
         if (err) return res.status(403).json({ success: false, message: 'Invalid Token' });
         
-        // 🔥 核心修改：检查 Token 里的密码指纹是否和当前系统的密码指纹一致
-        if (decoded.pwh !== getPasswordHash()) {
-            return res.status(401).json({ success: false, message: 'Password Changed, Please Login Again' });
+        // 检查用户是否依然存在
+        const users = getUsers();
+        const user = users.find(u => u.id === decoded.id);
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'User no longer exists' });
         }
 
         req.user = decoded;
@@ -38,6 +37,53 @@ export const verifyToken = (req, res, next) => {
     });
 };
 
-export const checkPassword = (inputPassword) => {
-    return inputPassword === ADMIN_PASSWORD;
+// 中间件：验证 Token (可选)
+export const verifyTokenOptional = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) {
+            req.user = null;
+            return next();
+        }
+        
+        const users = getUsers();
+        const user = users.find(u => u.id === decoded.id);
+        if (!user) {
+            req.user = null;
+            return next();
+        }
+
+        req.user = decoded;
+        next();
+    });
+};
+
+// 中间件：要求 Admin 权限
+export const requireAdmin = (req, res, next) => {
+    verifyToken(req, res, () => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+        next();
+    });
+};
+
+export const loginUser = (username, password) => {
+    const users = getUsers();
+    const user = users.find(u => u.username === username);
+    if (user && verifyPassword(password, user.password)) {
+        return { 
+            success: true, 
+            token: generateToken(user), 
+            user: { id: user.id, username: user.username, role: user.role } 
+        };
+    }
+    return { success: false, message: 'Invalid username or password' };
 };

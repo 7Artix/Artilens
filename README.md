@@ -2,6 +2,8 @@
 
 A Personal Website Template.
 
+![website template](./website_template.webp)
+
 ## Deployment
 
 1. Clone the repo.

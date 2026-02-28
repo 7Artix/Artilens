@@ -88,6 +88,11 @@ const renderedMarkdown = computed(() => {
             const fullPath = p2.startsWith('http') ? p2 : baseUrl + p2
             return p1 + fullPath + p3
         })
+
+        raw = raw.replace(/(<(?:img|video)\b[^>]*?\bsrc\s*=\s*["'])([^"']+?)(["'])/gi, (match, p1, p2, p3) => {
+            const fullPath = p2.startsWith('http') || p2.startsWith('/') ? p2 : baseUrl + p2
+            return p1 + fullPath + p3
+        })
     }
 
     return md.render(raw)

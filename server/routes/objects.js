@@ -7,8 +7,8 @@ import yaml from 'js-yaml';
 import crypto from 'crypto';
 import multer from 'multer';
 import { OBJECTS_PATH } from '../config.js';
-import { getAllObjectsFromFiles } from '../utils.js';
-import { verifyToken } from '../auth.js'; // 1. 引入中间件
+import * as utils from '../utils.js';
+import { verifyToken, verifyTokenOptional } from '../auth.js'; 
 
 const router = express.Router();
 
@@ -65,12 +65,30 @@ router.post('/:id/assets/delete', verifyToken, (req, res) => {
     }
 });
 
-// List all objects (读取操作，无需验证)
-router.get('/list', (req, res) => {
+// List all objects (读取操作，根据权限过滤)
+router.get('/list', verifyTokenOptional, (req, res) => {
     try {
-        // 直接调用工具函数，它会返回完整的、带有 coverImage 的对象数组
-        const list = getAllObjectsFromFiles(); 
-        res.json(list);
+        const list = utils.getAllObjectsFromFiles(); 
+        
+        // Filter based on permissions
+        const filteredList = list.filter(obj => {
+            // Admin can see everything
+            if (req.user && req.user.role === 'admin') return true;
+            
+            // Public objects are visible to everyone
+            if (obj.visibility === 'public') return true;
+            
+            // Logged in users
+            if (req.user) {
+                const userPermission = obj.user ? obj.user[req.user.id] : null;
+                // If user has any permission (owner, read, edit), they can see it
+                if (userPermission) return true;
+            }
+            
+            return false;
+        });
+
+        res.json(filteredList);
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
@@ -79,7 +97,6 @@ router.get('/list', (req, res) => {
 // Create a new object (🔒 添加 verifyToken)
 router.post('/create', verifyToken, (req, res) => {
     const { 
-        author = "Artix", 
         name = "New Object", 
         type = "project", 
         visibility = "public", 
@@ -99,10 +116,10 @@ router.post('/create', verifyToken, (req, res) => {
         id,
         dateCreated: now,
         dateModified : now,
-        author,
         name,
         type,
         visibility,
+        user: { [req.user.id]: "owner" },
         tags: [],
         description: "",
         ...rest
@@ -120,7 +137,7 @@ router.post('/create', verifyToken, (req, res) => {
     }
 });
 
-// Update config of an object (🔒 添加 verifyToken)
+// Update config of an object (🔒 检查所有者或 Admin)
 router.post('/update', verifyToken, (req, res) => {
     try {
         const config = req.body;
@@ -131,21 +148,65 @@ router.post('/update', verifyToken, (req, res) => {
         const dirPath = path.join(OBJECTS_PATH, id);
         if (!fs.existsSync(dirPath)) throw new Error("[Router - Objects] Project folder not found");
 
-        config.dateModified = new Date().toISOString();
+        // Permission check
+        const configPath = path.join(dirPath, 'config.yaml');
+        const existingConfig = yaml.load(fs.readFileSync(configPath, 'utf8'));
+        
+        const currentUserPermission = (existingConfig.user && existingConfig.user[req.user.id]) || null;
+        const isAdmin = req.user.role === 'admin';
+        const isOwner = currentUserPermission === 'owner';
 
-        fs.writeFileSync(path.join(dirPath, 'config.yaml'), yaml.dump(config));
+        if (!isAdmin && !isOwner) {
+            return res.status(403).json({ success: false, message: "Permission denied" });
+        }
+
+        config.dateModified = new Date().toISOString();
+        
+        // Ensure user permissions are handled correctly
+        // If the new config doesn't have 'user', keep the old one
+        if (!config.user) {
+            config.user = existingConfig.user;
+        } else {
+            // Requirement #3: Owner is unmodifiable. 
+            // We find the original owner and ensure they stay owner.
+            const originalOwnerId = Object.keys(existingConfig.user || {}).find(uid => existingConfig.user[uid] === 'owner');
+            if (originalOwnerId) {
+                // Ensure the original owner is still owner in the new config
+                config.user[originalOwnerId] = 'owner';
+                
+                // Optional: prevent multiple owners if that's a rule, 
+                // but let's just ensure the original one stays.
+            }
+        }
+        
+        // Clean up old fields if they exist
+        delete config.owner_id;
+        delete config.shared_with;
+        delete config.author;
+
+        fs.writeFileSync(configPath, yaml.dump(config));
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
     }
 });
 
-// Delete an existing object (🔒 添加 verifyToken)
+// Delete an existing object (🔒 检查所有者或 Admin)
 router.post('/delete', verifyToken, (req, res) => {
     const { id } = req.body;
     const dir = path.join(OBJECTS_PATH, id);
 
     try {
+        if (!fs.existsSync(dir)) return res.status(404).json({ success: false, message: "Not found" });
+        
+        const configPath = path.join(dir, 'config.yaml');
+        const existingConfig = yaml.load(fs.readFileSync(configPath, 'utf8'));
+        
+        const currentUserPermission = (existingConfig.user && existingConfig.user[req.user.id]) || null;
+        if (req.user.role !== 'admin' && currentUserPermission !== 'owner') {
+            return res.status(403).json({ success: false, message: "Permission denied" });
+        }
+
         fs.rmSync(dir, { recursive: true, force: true });
         res.json({ success: true });
     } catch (e) {
@@ -153,9 +214,9 @@ router.post('/delete', verifyToken, (req, res) => {
     }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', verifyTokenOptional, async (req, res) => {
     try {
-        const { id } = req.params; // 这里的 id 对应 URL 里的 :id
+        const { id } = req.params; 
 
         const dirPath = path.join(OBJECTS_PATH, id);
         const configPath = path.join(dirPath, 'config.yaml');
@@ -168,17 +229,33 @@ router.get('/:id', async (req, res) => {
         // 读取 YAML
         const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
 
+        // Permission check
+        const userPermission = (req.user && config.user) ? config.user[req.user.id] : null;
+        const isVisible = config.visibility === 'public' || 
+                          (req.user && (req.user.role === 'admin' || userPermission));
+        
+        if (!isVisible) {
+            return res.status(403).json({ success: false, message: "Permission denied" });
+        }
+
         // 读取 Markdown
         let markdown = "";
         if (fs.existsSync(mdPath)) {
             markdown = fs.readFileSync(mdPath, 'utf8');
         }
 
+        // 返回给前端之前，添加虚拟的 author 字段 (同 utils.js 逻辑)
+        const users = utils.getUsers();
+        const ownerId = Object.keys(config.user || {}).find(uid => config.user[uid] === 'owner');
+        const ownerUser = users.find(u => u.id === ownerId);
+        const authorName = ownerUser ? ownerUser.username : (config.author || "Artix");
+
         // 返回给前端
         res.json({
             ...config,
+            author: authorName,
             markdown,
-            assetBase: `/api/static/objects/${id}/` // 核心：告诉前端去哪拿资产
+            assetBase: `/api/static/objects/${id}/` 
         });
     } catch (e) {
         res.status(500).json({ success: false, message: e.message });
